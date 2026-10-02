@@ -8,7 +8,7 @@ const DEFAULTS = {
   scores: {}, // { [day]: best % }
   srs: {}, // { [wordId]: { due, ivl, ease, reps, lapses } }
   activity: {}, // { 'YYYY-MM-DD': true } – ngày có học
-  settings: { voiceURI: null, rate: 0.9, preferNative: true, autoplay: true },
+  settings: { voiceURI: null, rate: 0.9, preferNative: true, autoplay: true, reviewMode: 'vi' },
 };
 
 function load() {

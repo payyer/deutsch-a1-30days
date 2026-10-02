@@ -117,7 +117,7 @@ export function buildQuiz(day, seed = Date.now()) {
 
 /* ================= Chấm điểm ================= */
 
-function checkTyped(q, input) {
+export function checkTyped(q, input) {
   const target = q.answer;
   const alts = target.split(' / ');
   const ok = (a, b) => norm(a) === norm(b);
@@ -314,7 +314,10 @@ export default function Quiz({ day, onFinish }) {
   );
 }
 
-export function TypeInput({ value, onChange, onSubmit, disabled, long }) {
+// Phím tắt cho chữ đặc biệt khi bàn phím không có: Alt + a/o/u/s (giữ thêm Shift để viết hoa)
+const ALT_KEYS = { KeyA: ['ä', 'Ä'], KeyO: ['ö', 'Ö'], KeyU: ['ü', 'Ü'], KeyS: ['ß', 'ẞ'] };
+
+export function TypeInput({ value, onChange, onSubmit, disabled, long, placeholder, submitLabel = 'Kiểm tra', umlauts = true, lang = 'de' }) {
   const ref = useRef();
   useEffect(() => {
     if (!disabled) ref.current?.focus();
@@ -326,8 +329,14 @@ export function TypeInput({ value, onChange, onSubmit, disabled, long }) {
     onChange(value.slice(0, s) + ch + value.slice(e));
     requestAnimationFrame(() => {
       el.focus();
-      el.setSelectionRange(s + 1, s + 1);
+      el.setSelectionRange(s + ch.length, s + ch.length);
     });
+  };
+  const onKeyDown = (e) => {
+    const pair = umlauts && e.altKey && !e.ctrlKey && !e.metaKey && ALT_KEYS[e.code];
+    if (!pair) return;
+    e.preventDefault();
+    insert(pair[e.shiftKey ? 1 : 0]);
   };
   return (
     <form
@@ -337,20 +346,25 @@ export function TypeInput({ value, onChange, onSubmit, disabled, long }) {
         onSubmit();
       }}
     >
-      <input ref={ref} value={value} onChange={(e) => onChange(e.target.value)} disabled={disabled} placeholder={long ? 'Gõ cả câu…' : 'Gõ ở đây…'} autoComplete="off" autoCapitalize="off" spellCheck="false" lang="de" />
+      <input ref={ref} value={value} onChange={(e) => onChange(e.target.value)} onKeyDown={onKeyDown} disabled={disabled} placeholder={placeholder || (long ? 'Gõ cả câu…' : 'Gõ ở đây…')} autoComplete="off" autoCapitalize="off" spellCheck="false" lang={lang} />
       <div className="umlauts">
-        {['ä', 'ö', 'ü', 'ß', 'Ä', 'Ö', 'Ü'].map((c) => (
-          <button type="button" key={c} onClick={() => insert(c)} disabled={disabled} tabIndex={-1}>
-            {c}
-          </button>
-        ))}
+        {umlauts &&
+          ['ä', 'ö', 'ü', 'ß', 'Ä', 'Ö', 'Ü'].map((c) => (
+            <button type="button" key={c} onClick={() => insert(c)} disabled={disabled} tabIndex={-1}>
+              {c}
+            </button>
+          ))}
         {!disabled && (
           <button type="submit" className="btn primary">
-            Kiểm tra
+            {submitLabel}
           </button>
         )}
       </div>
+      {umlauts && !disabled && (
+        <div className="muted small key-hint">
+          Phím tắt: <kbd>Alt</kbd>+<kbd>a</kbd> ä · <kbd>Alt</kbd>+<kbd>o</kbd> ö · <kbd>Alt</kbd>+<kbd>u</kbd> ü · <kbd>Alt</kbd>+<kbd>s</kbd> ß · thêm <kbd>Shift</kbd> để viết hoa. Gõ ae/oe/ue/ss cũng được chấp nhận.
+        </div>
+      )}
     </form>
   );
 }
-

@@ -2,13 +2,16 @@ import { useEffect, useState } from 'react';
 import { VOCAB_BY_ID } from '../data/index.js';
 import { play, stopAudio } from '../lib/audio.js';
 import { dueIds, fmtInterval, grade, GRADES, nextInterval } from '../lib/srs.js';
-import { getState, markActive, useStore } from '../lib/store.js';
+import { getState, markActive, update, useStore } from '../lib/store.js';
+import { checkTyped, TypeInput } from './Quiz.jsx';
 import { DeWord, Icon, Ipa, PlayButton, Progress, shuffle, SourceBadge, SpeakCheck } from './ui.jsx';
 
 export default function Review({ go }) {
   const srs = useStore((s) => s.srs);
   const autoplay = useStore((s) => s.settings.autoplay);
-  const [mode, setMode] = useState('de'); // de: Đức → Việt (nghe hiểu); vi: Việt → Đức (nhớ chủ động)
+  // vi: Việt → Đức (gõ từ tiếng Đức, mặc định); de: Đức → Việt (nghe hiểu). Ghi nhớ lựa chọn.
+  const mode = useStore((s) => s.settings.reviewMode);
+  const setMode = (m) => update((s) => (s.settings.reviewMode = m));
   const [session, setSession] = useState(null);
 
   const due = dueIds(srs);
@@ -24,8 +27,8 @@ export default function Review({ go }) {
           Hệ thống lặp lại ngắt quãng (SRS): từ bạn nhớ tốt sẽ xuất hiện thưa dần (1 → 3 → 7 → 15 → 30+ ngày), từ hay quên sẽ quay lại sớm. Ôn <strong>trước</strong> khi học bài mới mỗi ngày.
         </p>
         <div className="seg">
+          <button className={mode === 'vi' ? 'on' : ''} onClick={() => setMode('vi')}>Việt → Đức <span className="muted small">gõ từ tiếng Đức</span></button>
           <button className={mode === 'de' ? 'on' : ''} onClick={() => setMode('de')}>Đức → Việt <span className="muted small">nghe & hiểu</span></button>
-          <button className={mode === 'vi' ? 'on' : ''} onClick={() => setMode('vi')}>Việt → Đức <span className="muted small">nhớ chủ động</span></button>
         </div>
         <div className="card center">
           <div className="score-big">{due.length}</div>
@@ -55,6 +58,9 @@ function Session({ session, setSession, mode, autoplay }) {
   const id = queue[i];
   const item = VOCAB_BY_ID[id];
   const card = getState().srs[id];
+  const [typed, setTyped] = useState('');
+
+  useEffect(() => setTyped(''), [i]);
 
   useEffect(() => {
     if (!item) return;
@@ -65,6 +71,8 @@ function Session({ session, setSession, mode, autoplay }) {
   useEffect(() => {
     const h = (e) => {
       if (!item) return;
+      // đang gõ trong ô nhập thì để ô nhập tự xử lý phím
+      if (e.target.tagName === 'INPUT' && !e.target.disabled) return;
       if (!flipped && (e.key === ' ' || e.key === 'Enter')) {
         e.preventDefault();
         flip();
@@ -91,6 +99,9 @@ function Session({ session, setSession, mode, autoplay }) {
     setSession((s) => ({ ...s, flipped: true }));
     if (mode === 'vi') play(item.de);
   }
+
+  // Việt → Đức: tự chấm chính tả; Đức → Việt: chỉ hiện lại để tự so sánh
+  const check = flipped && mode === 'vi' && typed.trim() ? checkTyped({ type: 'type', answer: item.de, item }, typed) : null;
 
   function rate(q) {
     grade(id, q);
@@ -135,13 +146,36 @@ function Session({ session, setSession, mode, autoplay }) {
         {flipped ? (
           <div className="fc-back">
             {mode === 'de' ? <div className="fc-vi">{item.vi}</div> : null}
+            {typed.trim() && (
+              <div>
+                <span className={`typed ${check ? (check.ok ? 'ok' : 'bad') : ''}`}>
+                  <span className="muted small">Bạn viết:</span> <strong>{typed}</strong>
+                  {check && <span>{check.ok ? '✓' : '✗'}{check.msg && <span className="small"> {check.msg}</span>}</span>}
+                </span>
+              </div>
+            )}
             {item.note && <div className="muted">{item.note}</div>}
             <div className="muted small">Ngày {item.day}</div>
           </div>
         ) : (
-          <div className="fc-hint muted small">{mode === 'de' ? 'Nghĩa là gì? Nghĩ trong đầu rồi' : 'Nói to từ tiếng Đức rồi'} chạm để lật (Space)</div>
+          <div className="fc-hint muted small">{mode === 'de' ? 'Nghĩa là gì? Nghĩ trong đầu rồi chạm để lật (Space)' : 'Gõ từ tiếng Đức rồi nhấn Enter – đúng hay sai đều hiện phát âm'}</div>
         )}
       </div>
+
+      {mode === 'vi' && !flipped && (
+        <div className="review-input">
+          <span className="label">Viết từ tiếng Đức (danh từ kèm der/die/das)</span>
+          <TypeInput
+            key={i}
+            value={typed}
+            onChange={setTyped}
+            onSubmit={() => !flipped && flip()}
+            disabled={flipped}
+            placeholder="Gõ từ tiếng Đức…"
+            submitLabel="Kiểm tra"
+          />
+        </div>
+      )}
 
       {flipped && (
         <div className="grades">

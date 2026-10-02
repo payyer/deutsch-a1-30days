@@ -397,3 +397,10 @@ textarea { resize: vertical; margin: 0.5rem 0; }
   .hero-actions { width: 100%; }
   .hero-actions .btn { flex: 1; }
 }
+
+.key-hint kbd { font: inherit; font-size: 0.75rem; padding: 0 0.3rem; border: 1px solid var(--border); border-bottom-width: 2px; border-radius: 4px; background: var(--surface); }
+.review-input { display: flex; flex-direction: column; gap: 0.4rem; }
+.review-input .label { font-size: 0.82rem; font-weight: 600; color: var(--muted); }
+.typed { display: inline-flex; flex-wrap: wrap; gap: 0.35rem; align-items: baseline; justify-content: center; padding: 0.4rem 0.7rem; border-radius: 8px; background: var(--surface-2); }
+.typed.ok { background: var(--ok-soft); color: var(--ok); }
+.typed.bad { background: var(--bad-soft); color: var(--bad); }
